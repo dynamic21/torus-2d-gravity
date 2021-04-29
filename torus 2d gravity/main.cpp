@@ -44,15 +44,6 @@ public:
 		radius = Radius;
 		mass = massFactor * radius * radius;
 	}
-
-	/*ball(ball* Ball)
-	{
-		pos = Ball->pos - vd2d{ floor(Ball->pos.x), floor(Ball->pos.y) };
-		posv = Ball->posv;
-		color = Ball->color;
-		radius = Ball->radius;
-		mass = Ball->mass;
-	}*/
 };
 
 class clusterBall
@@ -62,11 +53,11 @@ public:
 	vd2d posv;
 	double mass;
 
-	clusterBall(vd2d Pos, vd2d Posv, double Mass)
+	clusterBall()
 	{
-		pos = Pos;
-		posv = Posv;
-		mass = Mass;
+		pos = { 0,0 };
+		posv = { 0,0 };
+		mass = 0;
 	}
 };
 
@@ -191,43 +182,40 @@ public:
 	{
 		Clear(Pixel(0, 0, 0));
 
+		grid.clear();
+
 		for (int i = 0; i < balls.size(); i++)
 		{
 			grid[floor(balls[i]->pos.x)][floor(balls[i]->pos.y)].push_back(balls[i]);
 		}
 
-		/*vd2d roundPos = vd2d{ unsigned int(pos.x) - double(pos.x < 0), unsigned int(pos.y) - double(pos.y < 0) };
-		vd2d modPos = roundPos - pos;
-		vd2d cornerPos = halfScreen / zoom + modPos;
-		cornerPos = vd2d{ unsigned int(cornerPos.x) - double(cornerPos.x < 0), unsigned int(cornerPos.y) - double(cornerPos.y < 0) };
-
-		for (int i = 0; i < balls.size(); i++)
-		{
-			FillCircle((balls[i]->pos - pos) * zoom + halfScreen, zoom * balls[i]->radius, balls[i]->color);
-		}*/
 		vd2d startPos = (pos - halfScreen / zoom).floor();
-		vd2d endPos = (pos + halfScreen / zoom).floor();
+		vd2d endPos = vd2d{ 1.0, 1.0 } + (pos + halfScreen / zoom).floor();
 
 		unordered_map<unsigned int, unordered_map<unsigned int, vector<ball*>>>::iterator findx;
 		unordered_map<unsigned int, vector<ball*>>::iterator findy;
 
+		int tx, ty;
+
 		for (int mx = startPos.x; mx < endPos.x; mx++)
 		{
-			findx = grid.find(mx);
+			tx = unsigned int(mx) % torusRange;
+			findx = grid.find(tx);
 
 			if (findx != grid.end())
 			{
 				for (int my = startPos.y; my < endPos.y; my++)
 				{
-					findy = findx->second.find(my);
+					ty = unsigned int(my) % torusRange;
+					findy = findx->second.find(ty);
 
 					if (findy != findx->second.end())
 					{
-						for (int i = 0; i < grid[mx][my].size(); i++)
+						for (int i = 0; i < grid[tx][ty].size(); i++)
 						{
-							vd2d bPos = vd2d{ double(mx), double(my) } + grid[mx][my][i]->pos - grid[mx][my][i]->pos.floor();
+							vd2d bPos = vd2d{ double(mx), double(my) } + grid[tx][ty][i]->pos - grid[tx][ty][i]->pos.floor();
 
-							FillCircle((bPos - pos) * zoom + halfScreen, zoom * grid[mx][my][i]->radius, grid[mx][my][i]->color);
+							FillCircle((bPos - pos) * zoom + halfScreen, zoom * grid[tx][ty][i]->radius, grid[tx][ty][i]->color);
 						}
 					}
 				}
@@ -238,7 +226,7 @@ public:
 	bool OnUserCreate() override
 	{
 		pos = { 0,0 };
-		zoom = 16;
+		zoom = 64;
 
 		halfScreen = { halfScreenx, halfScreeny };
 		m_z = (unsigned int)duration_cast<seconds>(high_resolution_clock::now().time_since_epoch()).count();
