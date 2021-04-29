@@ -226,6 +226,7 @@ public:
 						for (int i = 0; i < grid[mx][my].size(); i++)
 						{
 							vd2d bPos = vd2d{ double(mx), double(my) } + grid[mx][my][i]->pos - grid[mx][my][i]->pos.floor();
+
 							FillCircle((bPos - pos) * zoom + halfScreen, zoom * grid[mx][my][i]->radius, grid[mx][my][i]->color);
 						}
 					}
