@@ -20,10 +20,10 @@ using std::chrono::high_resolution_clock;
 
 #define gravityConstant 1
 #define massFactor 3.14
-#define minRadius 0.05
-#define maxRadius 0.5
-#define torusRange 16 // 2 ^ 8
-#define torusPowerRange 4 // 2 ^ 8
+#define minRadius 0.05 // can be anything less then 0.5
+#define maxRadius 0.5 // must be 0.5 cuz diamiter is 1 and collision partitions by 1
+#define torusRange 8 // 2 ^ 3
+#define torusPowerRange 3 // 2 ^ 3
 #define halfScreenx 600
 #define halfScreeny 400
 
@@ -79,7 +79,9 @@ public:
 
 	vector<ball*> balls;
 
-	unordered_map<unsigned int, unordered_map<unsigned int, vector<ball*>>> grid;
+	unordered_map<unsigned int, unordered_map<unsigned int, vector<ball*>>> partitionedSpace;
+
+	unordered_map<unsigned int, unordered_map<unsigned int, clusterBall*>> layeredGravityFields;
 
 	unsigned int intRand()
 	{
@@ -105,59 +107,84 @@ public:
 		if (GetKey(Key::Q).bHeld) { zoom /= pow(2, fElapsedTime); }
 		if (GetKey(Key::E).bHeld) { zoom *= pow(2, fElapsedTime); }
 
-		if (GetKey(Key::W).bHeld || GetKey(Key::UP).bHeld) { pos.y -= 200 * fElapsedTime / zoom; }
-		if (GetKey(Key::A).bHeld || GetKey(Key::LEFT).bHeld) { pos.x -= 200 * fElapsedTime / zoom; }
-		if (GetKey(Key::S).bHeld || GetKey(Key::DOWN).bHeld) { pos.y += 200 * fElapsedTime / zoom; }
-		if (GetKey(Key::D).bHeld || GetKey(Key::RIGHT).bHeld) { pos.x += 200 * fElapsedTime / zoom; }
+		if (GetKey(Key::W).bHeld || GetKey(Key::UP).bHeld) { pos.y -= 400 * fElapsedTime / zoom; }
+		if (GetKey(Key::A).bHeld || GetKey(Key::LEFT).bHeld) { pos.x -= 400 * fElapsedTime / zoom; }
+		if (GetKey(Key::S).bHeld || GetKey(Key::DOWN).bHeld) { pos.y += 400 * fElapsedTime / zoom; }
+		if (GetKey(Key::D).bHeld || GetKey(Key::RIGHT).bHeld) { pos.x += 400 * fElapsedTime / zoom; }
 	}
 
-	/*void ballToBall(int i, int j)
+	void ballPullBall(clusterBall* ball1, clusterBall* ball2, int mx, int my)//add unit distance
 	{
-		vd2d dpos = balls[j].pos - balls[i].pos;
+		vd2d dpos = vd2d{ double(mx), double(my) } + ball2->pos - ball2->pos.floor() + ball1->pos.floor() - ball1->pos;
 		double dis = dpos.mag2();
 
-		if (dis < 1)
+		dpos *= gravityConstant / (dis * sqrt(dis));
+
+		ball1->posv += dpos * ball2->mass;
+		ball2->posv -= dpos * ball1->mass;
+	}
+
+	void gravity()
+	{
+		//
+	}
+
+	void ballToBall(ball* ball1, ball* ball2, int mx, int my)
+	{
+		vd2d dpos = vd2d{ double(mx), double(my) } + ball2->pos - ball2->pos.floor() + ball1->pos.floor() - ball1->pos;
+		double dis = dpos.mag();
+
+		if (dis < ball2->radius + ball1->radius)
 		{
-			dpos /= sqrt(dis);
-			dis = (balls[j].posv - balls[i].posv).dot(dpos);
+			dpos /= dis;
+			dis = (ball2->posv - ball1->posv).dot(dpos);
 
 			if (dis < 0)
 			{
-				dpos *= dis;
-				balls[i].posv += dpos;
-				balls[j].posv -= dpos;
+				dpos *= 2 * dis / (ball1->mass + ball2->mass);
+				ball1->posv += dpos * ball2->mass;
+				ball2->posv -= dpos * ball1->mass;
 			}
 		}
-	}*/
+	}
 
 	void collision()
 	{
 		unordered_map<unsigned int, unordered_map<unsigned int, vector<ball*>>>::iterator findx;
 		unordered_map<unsigned int, vector<ball*>>::iterator findy;
 
-		for (auto i = grid.begin(); i != grid.end(); i++)
+		unsigned int tx, ty;
+
+		for (auto i = partitionedSpace.begin(); i != partitionedSpace.end(); i++)
 		{
 			for (auto j = i->second.begin(); j != i->second.end(); j++)
 			{
 				for (int k = 0; k < j->second.size(); k++)
 				{
-					for (int x = 0; x < 2; x++)
+					for (int l = k + 1; l < j->second.size(); l++)
 					{
-						findx = grid.find(i->first + x);
+						ballToBall(j->second[k], j->second[l], 0, 0);
+					}
 
-						if (findx != grid.end())
+					for (int mx = 0; mx < 2; mx++)
+					{
+						tx = unsigned int(i->first + mx) % torusRange;
+						findx = partitionedSpace.find(tx);
+
+						if (findx != partitionedSpace.end())
 						{
-							for (int y = -1; y < 2; y++)
+							for (int my = -1; my < 2; my++)
 							{
-								if (x != 0 && y != -1)
+								if (mx > 0 || my > 0)
 								{
-									findy = findx->second.find(j->first + y);
+									ty = unsigned int(j->first + my) % torusRange;
+									findy = findx->second.find(ty);
 
 									if (findy != findx->second.end())
 									{
 										for (int l = 0; l < findy->second.size(); l++)
 										{
-											//ballToBall(j->second[k], findy->second[l]);
+											ballToBall(j->second[k], findy->second[l], mx, my);
 										}
 									}
 								}
@@ -182,11 +209,11 @@ public:
 	{
 		Clear(Pixel(0, 0, 0));
 
-		grid.clear();
+		partitionedSpace.clear();
 
 		for (int i = 0; i < balls.size(); i++)
 		{
-			grid[floor(balls[i]->pos.x)][floor(balls[i]->pos.y)].push_back(balls[i]);
+			partitionedSpace[floor(balls[i]->pos.x)][floor(balls[i]->pos.y)].push_back(balls[i]);
 		}
 
 		vd2d startPos = (pos - halfScreen / zoom).floor();
@@ -195,14 +222,14 @@ public:
 		unordered_map<unsigned int, unordered_map<unsigned int, vector<ball*>>>::iterator findx;
 		unordered_map<unsigned int, vector<ball*>>::iterator findy;
 
-		int tx, ty;
+		unsigned int tx, ty;
 
 		for (int mx = startPos.x; mx < endPos.x; mx++)
 		{
 			tx = unsigned int(mx) % torusRange;
-			findx = grid.find(tx);
+			findx = partitionedSpace.find(tx);
 
-			if (findx != grid.end())
+			if (findx != partitionedSpace.end())
 			{
 				for (int my = startPos.y; my < endPos.y; my++)
 				{
@@ -211,11 +238,11 @@ public:
 
 					if (findy != findx->second.end())
 					{
-						for (int i = 0; i < grid[tx][ty].size(); i++)
+						for (int i = 0; i < partitionedSpace[tx][ty].size(); i++)
 						{
-							vd2d bPos = vd2d{ double(mx), double(my) } + grid[tx][ty][i]->pos - grid[tx][ty][i]->pos.floor();
+							vd2d bPos = vd2d{ double(mx), double(my) } + partitionedSpace[tx][ty][i]->pos - partitionedSpace[tx][ty][i]->pos.floor();
 
-							FillCircle((bPos - pos) * zoom + halfScreen, zoom * grid[tx][ty][i]->radius, grid[tx][ty][i]->color);
+							FillCircle((bPos - pos) * zoom + halfScreen, zoom * partitionedSpace[tx][ty][i]->radius, partitionedSpace[tx][ty][i]->color);
 						}
 					}
 				}
@@ -235,8 +262,8 @@ public:
 		for (int i = 0; i < 10; i++)
 		{
 			double randNum = doubleRand() * 6.28318530718;
-			vd2d bPos = (vd2d{ doubleRand(), doubleRand() }) * pow(2, torusPowerRange);
-			vd2d bPosv = (vd2d{ cos(randNum), sin(randNum) }) * 1;
+			vd2d bPos = (vd2d{ doubleRand(), doubleRand() }) * torusRange;
+			vd2d bPosv = (vd2d{ cos(randNum), sin(randNum) }) * 2;
 			Pixel bColor = mapToRainbow(doubleRand() * 6);
 			balls.push_back(new ball(bPos, bPosv, bColor, doubleRand() * (maxRadius - minRadius) + minRadius));
 		}
@@ -248,7 +275,7 @@ public:
 	{
 		userControl(fElapsedTime);
 		//gravity();
-		//collision();
+		collision();
 		moveBalls(fElapsedTime);
 		drawBalls();
 
