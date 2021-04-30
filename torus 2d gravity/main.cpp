@@ -85,7 +85,7 @@ public:
 	uint32_t torusRange;
 	uint32_t torusMod;
 
-	vector<ball*> balls = { new ball(vd2d(10, 30), vd2d(0, 0), Pixel(0xff, 0, 0xff), 0.5), new ball(vd2d(10, 10), vd2d(0, 0), Pixel(0xff, 0xff, 0), 0.5) };
+	vector<ball*> balls = { new ball(vd2d(-2, -2), vd2d(1, 0), Pixel(0xff, 0, 0xff), 0.25), new ball(vd2d(2, -2), vd2d(0, 1), Pixel(0xff, 0xff, 0), 0.5), new ball(vd2d(2, 2), vd2d(-1, 0), Pixel(0xff, 0xff, 0), 0.25), new ball(vd2d(-2, 2), vd2d(0, -1), Pixel(0xff, 0xff, 0), 0.5) };
 
 	unordered_map<uint32_t, unordered_map<uint32_t, vector<ball*>>> collisionSpace;
 
@@ -170,7 +170,7 @@ public:
 		unordered_map<uint32_t, unordered_map<uint32_t, clusterBall>>::iterator findx;
 		unordered_map<uint32_t, clusterBall>::iterator findy;
 
-		for (int layer = numGravityFields - 1; layer >= 0; layer--)
+		for (int layer = 0; layer < numGravityFields; layer++)
 		{
 			uint32_t unitDistance = 1 << layer;
 			uint32_t layeredTorusMod = torusMod >> layer;
@@ -184,7 +184,7 @@ public:
 					uint32_t anchorx = fieldx->first & 0xfffffffe;
 					uint32_t anchory = fieldy->first & 0xfffffffe;
 
-					/*for (int x = 0; x < 4; x++)
+					for (int x = 0; x < 4; x++)
 					{
 						int tx = anchorx + x & (torusMod >> layer);
 
@@ -204,7 +204,7 @@ public:
 								}
 							}
 						}
-					}*/
+					}/**/
 
 					for (int dx = 0; dx < 4; dx++)
 					{
@@ -232,49 +232,62 @@ public:
 							}
 						}
 					}
+				}
+			}
+		}
 
-					for (auto i = layeredGravityFields[1].begin(); i != layeredGravityFields[1].end(); i++)
-					{
-						for (auto j = i->second.begin(); j != i->second.end(); j++) {
-							cout << i->first << ", " << j->first << ", " << j->second.vel << endl;
-						}
-					}/**/
+		/*for (auto fieldx = layeredGravityFields[0].begin(); fieldx != layeredGravityFields[0].end(); fieldx++)
+		{
+			for (auto fieldy = fieldx->second.begin(); fieldy != fieldx->second.end(); fieldy++)
+			{
+				for (int dx = 0; dx < 2; dx++)
+				{
+					findx = layeredGravityFields[0].find(fieldx->first + dx & torusMod);
 
-					/*if (layer != 0)
+					if (findx != layeredGravityFields[0].end())
 					{
-						for (int x = 0; x < 2; x++)
+						for (int dy = 0; dy < 2; dy++)
 						{
-							for (int y = 0; y < 2; y++)
+							findy = findx->second.find(fieldy->first + dy & torusMod);
+
+							if (findy != findx->second.end())
 							{
-								vd2d bPos = vd2d(double((fieldx->first << 1 | x) + 0.5), double((fieldy->first << 1 | y) + 0.5)) * (unitDistance >> 1);
-								FillCircle((bPos - pos) * zoom + halfScreen, zoom * (unitDistance >> 1) / 2, Pixel((numGravityFields - layer + 1) * (250 / numGravityFields), 0, 0));
+								cout << findx->first << ", " << findy->first << ", " << findy->second.vel << endl;
+								findy->second.vel += fieldy->second.vel;
 							}
 						}
-					}*/
+					}
+				}
+			}
+		}*/
 
-					if (layer != 0)
+		for (int layer = numGravityFields - 1; layer > 0; layer--)
+		{
+			for (auto fieldx = layeredGravityFields[layer].begin(); fieldx != layeredGravityFields[layer].end(); fieldx++)
+			{
+				for (auto fieldy = fieldx->second.begin(); fieldy != fieldx->second.end(); fieldy++)
+				{
+					for (int x = 0; x < 2; x++)
 					{
-						cout << fieldx->first << ", " << fieldy->first << ", " << fieldy->second.vel << " pass to: " << endl;
-
-						for (int x = 0; x < 2; x++)
+						for (int y = 0; y < 2; y++)
 						{
-							findx = layeredGravityFields[layer - 1].find(fieldx->first << 1 + x);
+							vd2d bPos = vd2d(double((fieldx->first << 1 | x) + 0.5), double((fieldy->first << 1 | y) + 0.5)) * (1 << layer >> 1);
+							FillCircle((bPos - pos) * zoom + halfScreen, zoom * (1 << layer >> 1) / 2, Pixel((numGravityFields - layer + 1) * (250 / numGravityFields), 0, 0));
+						}
+					}
+					for (int dx = 0; dx < 2; dx++)
+					{
+						findx = layeredGravityFields[layer - 1].find(fieldx->first << 1 | dx);
 
-							if (findx != layeredGravityFields[layer - 1].end())
+						if (findx != layeredGravityFields[layer - 1].end())
+						{
+							for (int dy = 0; dy < 2; dy++)
 							{
-								for (int y = 0; y < 2; y++)
-								{
-									findy = findx->second.find(fieldy->first << 1 + y);
+								findy = findx->second.find(fieldy->first << 1 | dy);
 
-									if (findy != findx->second.end())
-									{
-										findy->second.vel += fieldy->second.vel;
-										//cout << findx->first << ", " << findy->first << ", " << findy->second.vel << endl;
-										/*if (findx->first == 10 && findy->first == 14)
-										{
-											cout << findy->second.vel << endl;
-										}*/
-									}
+								if (findy != findx->second.end())
+								{
+									findy->second.vel += fieldy->second.vel;
 								}
 							}
 						}
@@ -283,16 +296,8 @@ public:
 			}
 		}
 
-		/*for (auto i = layeredGravityFields[1].begin(); i != layeredGravityFields[1].end(); i++)
-		{
-			for (auto j = i->second.begin(); j != i->second.end(); j++) {
-				cout << i->first << ", " << j->first << ", " << j->second.vel << endl;
-			}
-		}*/
-
 		for (int i = 0; i < balls.size(); i++)
 		{
-			cout << balls[i]->pos.touint() << " and " << layeredGravityFields[0][uint32_t(balls[i]->pos.x)][uint32_t(balls[i]->pos.y)].vel << endl;
 			balls[i]->vel += layeredGravityFields[0][uint32_t(balls[i]->pos.x)][uint32_t(balls[i]->pos.y)].vel * fElapsedTime;
 		}
 
@@ -449,9 +454,11 @@ public:
 	{
 		Clear(Pixel(0, 0, 0));
 
-		fElapsedTime /= 10;
-
 		userControl(fElapsedTime);
+		if (!GetKey(Key::SPACE).bHeld)
+		{
+			fElapsedTime = 0;
+		}
 		gravity(fElapsedTime);
 		collision();
 		moveBalls(fElapsedTime);
