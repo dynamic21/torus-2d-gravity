@@ -18,19 +18,19 @@ using std::chrono::microseconds;
 using std::chrono::duration_cast;
 using std::chrono::high_resolution_clock;
 
-#define numGravityFields 2 // max is torusPowerRange - 2, anything greater is experimental, min 1, greater then torusPowerRange should give no better results
+#define numGravityFields 5 // max is torusPowerRange - 2, anything greater is experimental, min 1, greater then torusPowerRange should give no better results
 #define gravityConstant 10
 
-#define torusPowerRange 4 // max is 32, min is 3
+#define torusPowerRange 5 // max is 32, min is 3
 
 #define halfScreenx 600
 #define halfScreeny 400
 
 #define massFactor 3.14
-#define minRadius 0.05 // can be anything less then maxRadius
+#define minRadius 0.2 // can be anything less then maxRadius
 #define maxRadius 0.5 // max is 0.5 because diamiter is 1 and space is partitioned every unit
 
-#define numBalls 2
+#define numBalls 100
 
 class ball
 {
@@ -85,7 +85,7 @@ public:
 	uint32_t torusRange;
 	uint32_t torusMod;
 
-	vector<ball*> balls = { new ball(vd2d(-2, -2), vd2d(1, 0), Pixel(0xff, 0, 0xff), 0.25), new ball(vd2d(2, -2), vd2d(0, 1), Pixel(0xff, 0xff, 0), 0.5), new ball(vd2d(2, 2), vd2d(-1, 0), Pixel(0xff, 0xff, 0), 0.25), new ball(vd2d(-2, 2), vd2d(0, -1), Pixel(0xff, 0xff, 0), 0.5) };
+	vector<ball*> balls;// = { new ball(vd2d(-2, -2), vd2d(1, 0), Pixel(0xff, 0xff, 0), 0.25), new ball(vd2d(2, -2), vd2d(0, 1), Pixel(0xff, 0xff, 0), 0.5), new ball(vd2d(2, 2), vd2d(-1, 0), Pixel(0xff, 0xff, 0), 0.25), new ball(vd2d(-2, 2), vd2d(0, -1), Pixel(0xff, 0xff, 0), 0.5) };
 
 	unordered_map<uint32_t, unordered_map<uint32_t, vector<ball*>>> collisionSpace;
 
@@ -170,7 +170,7 @@ public:
 		unordered_map<uint32_t, unordered_map<uint32_t, clusterBall>>::iterator findx;
 		unordered_map<uint32_t, clusterBall>::iterator findy;
 
-		for (int layer = 0; layer < numGravityFields; layer++)
+		for (int layer = numGravityFields - 1; layer >= 0; layer--) //for (int layer = 0; layer < numGravityFields; layer++)
 		{
 			uint32_t unitDistance = 1 << layer;
 			uint32_t layeredTorusMod = torusMod >> layer;
@@ -184,14 +184,10 @@ public:
 					uint32_t anchorx = fieldx->first & 0xfffffffe;
 					uint32_t anchory = fieldy->first & 0xfffffffe;
 
-					for (int x = 0; x < 4; x++)
+					/*for (int x = 0; x < 4; x++)
 					{
-						int tx = anchorx + x & (torusMod >> layer);
-
 						for (int y = -2; y < 4; y++)
 						{
-							int ty = anchory + y & (torusMod >> layer);
-
 							if (x > 1 || y > 1)
 							{
 								unitDifx = anchorx - fieldx->first + x;
@@ -199,14 +195,14 @@ public:
 
 								if (abs(unitDifx) > 1 || abs(unitDify) > 1)
 								{
-									vd2d bPos = vd2d(double(tx + 0.5), double(ty + 0.5)) * unitDistance;
+									vd2d bPos = vd2d(double((anchorx + x & (torusMod >> layer)) + 0.5), double((anchory + y & (torusMod >> layer)) + 0.5)) * unitDistance;
 									FillCircle((bPos - pos) * zoom + halfScreen, zoom * unitDistance / 2, Pixel(0, 0, (numGravityFields - layer) * (250 / numGravityFields)));
 								}
 							}
 						}
-					}/**/
+					}*/
 
-					for (int dx = 0; dx < 4; dx++)
+					for (int dx = 0; dx < 4; dx++) // far neighbor
 					{
 						findx = layeredGravityFields[layer].find(anchorx + dx & layeredTorusMod);
 
@@ -224,9 +220,7 @@ public:
 										findy = findx->second.find(anchory + dy & layeredTorusMod);
 
 										if (findy != findx->second.end())
-										{
 											ballPullBall(&fieldy->second, &findy->second, unitDifx, unitDify, unitDistance, fieldx->first, fieldy->first, findx->first, findy->first);
-										}
 									}
 								}
 							}
@@ -236,18 +230,18 @@ public:
 			}
 		}
 
-		for (auto fieldx = layeredGravityFields[0].begin(); fieldx != layeredGravityFields[0].end(); fieldx++)
+		for (auto fieldx = layeredGravityFields[0].begin(); fieldx != layeredGravityFields[0].end(); fieldx++) // near neighbor
 		{
 			for (auto fieldy = fieldx->second.begin(); fieldy != fieldx->second.end(); fieldy++)
 			{
-				for (int dx = 0; dx < 2; dx++)
+				/*for (int dx = 0; dx < 2; dx++)
 				{
 					for (int dy = 0; dy < 2; dy++)
 					{
 						vd2d bPos = vd2d(double((fieldx->first + dx & torusMod) + 0.5), double((fieldy->first + dy & torusMod) + 0.5));
 						FillCircle((bPos - pos) * zoom + halfScreen, zoom / 2, Pixel(0xff, 0, 0xff));
 					}
-				}/**/
+				}*/
 
 				for (int dx = 0; dx < 2; dx++)
 				{
@@ -262,9 +256,7 @@ public:
 								findy = findx->second.find(fieldy->first + dy & torusMod);
 
 								if (findy != findx->second.end())
-								{
 									ballPullBall(&fieldy->second, &findy->second, dx, dy, 1, fieldx->first, fieldy->first, findx->first, findy->first);
-								}
 							}
 						}
 					}
@@ -272,20 +264,12 @@ public:
 			}
 		}
 
-		for (int layer = numGravityFields - 1; layer > 0; layer--)
+		for (int layer = numGravityFields - 1; layer > 0; layer--) // collecting
 		{
 			for (auto fieldx = layeredGravityFields[layer].begin(); fieldx != layeredGravityFields[layer].end(); fieldx++)
 			{
 				for (auto fieldy = fieldx->second.begin(); fieldy != fieldx->second.end(); fieldy++)
 				{
-					for (int x = 0; x < 2; x++)
-					{
-						for (int y = 0; y < 2; y++)
-						{
-							vd2d bPos = vd2d(double((fieldx->first << 1 | x) + 0.5), double((fieldy->first << 1 | y) + 0.5)) * (1 << layer >> 1);
-							FillCircle((bPos - pos) * zoom + halfScreen, zoom * (1 << layer >> 1) / 2, Pixel((numGravityFields - layer + 1) * (250 / numGravityFields), 0, 0));
-						}
-					}
 					for (int dx = 0; dx < 2; dx++)
 					{
 						findx = layeredGravityFields[layer - 1].find(fieldx->first << 1 | dx);
@@ -297,9 +281,7 @@ public:
 								findy = findx->second.find(fieldy->first << 1 | dy);
 
 								if (findy != findx->second.end())
-								{
 									findy->second.vel += fieldy->second.vel;
-								}
 							}
 						}
 					}
@@ -308,14 +290,10 @@ public:
 		}
 
 		for (int i = 0; i < balls.size(); i++)
-		{
 			balls[i]->vel += layeredGravityFields[0][uint32_t(balls[i]->pos.x)][uint32_t(balls[i]->pos.y)].vel * fElapsedTime;
-		}
 
 		for (int i = 0; i < numGravityFields; i++)
-		{
 			layeredGravityFields[i].clear();
-		}
 	}
 
 	void ballToBall(ball* ball1, ball* ball2, int dx, int dy, uint32_t partion1x, uint32_t partion1y, uint32_t partion2x, uint32_t partion2y)
@@ -449,14 +427,14 @@ public:
 		torusRange = 1 << torusPowerRange;
 		torusMod = 0xffffffff >> (32 - torusPowerRange);
 
-		/*for (int i = 0; i < numBalls; i++)
+		for (int i = 0; i < numBalls; i++)
 		{
 			double randNum = doubleRand() * 6.28318530718;
 			vd2d bPos = vd2d(doubleRand(), doubleRand()) * torusRange;
-			vd2d bPosv = vd2d(cos(randNum), sin(randNum)) * 1;
+			vd2d bPosv = vd2d(cos(randNum), sin(randNum)) * 0;
 			Pixel bColor = mapToRainbow(doubleRand() * 6);
 			balls.push_back(new ball(bPos, bPosv, bColor, doubleRand() * (maxRadius - minRadius) + minRadius));
-		}*/
+		}/**/
 
 		return true;
 	}
