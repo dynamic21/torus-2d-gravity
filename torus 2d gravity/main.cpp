@@ -18,10 +18,10 @@ using std::chrono::microseconds;
 using std::chrono::duration_cast;
 using std::chrono::high_resolution_clock;
 
-#define numGravityFields 6 // max is torusPowerRange, min 1, not sure if torusPowerRange - 2 is better, or -3
+#define numGravityFields 1 // max is torusPowerRange, min 1, not sure if torusPowerRange - 2 is better, or -3
 #define gravityConstant 10
 
-#define torusPowerRange 9 // max is 32, min is 3
+#define torusPowerRange 3 // max is 32, min is 3
 
 #define halfScreenx 600
 #define halfScreeny 400
@@ -30,7 +30,7 @@ using std::chrono::high_resolution_clock;
 #define minRadius 0.1 // can be anything less then maxRadius
 #define maxRadius 0.5 // max is 0.5 because diamiter is 1 and space is partitioned every unit
 
-#define numBalls 10000
+#define numBalls 3
 
 class ball
 {
@@ -123,8 +123,15 @@ public:
 
 	void ballPullBall(clusterBall* ball1, clusterBall* ball2, int dx, int dy, uint32_t unitDistance, uint32_t partion1x, uint32_t partion1y, uint32_t partion2x, uint32_t partion2y)
 	{
-		vd2d dpos = vd2d(partion1x - partion2x + dx, partion1y - partion2y + dy) * unitDistance - ball1->pos + ball2->pos;
+		vd2d dpos = vd2d(int(partion1x - partion2x) + dx, int(partion1y - partion2y) + dy) * unitDistance - ball1->pos + ball2->pos;
 		double dis = dpos.mag2();
+
+		vd2d bPos1 = ball1->pos;
+		vd2d bPos2 = ball2->pos;
+		vd2d bPos3 = ball1->pos + dpos;
+
+		DrawLine((bPos1 - pos) * zoom + halfScreen, (bPos3 - pos) * zoom + halfScreen, Pixel(0xff, 0, 0));
+		//DrawLine((bPos1 - pos) * zoom + halfScreen, (bPos2 - pos) * zoom + halfScreen, Pixel(0, 0xff, 0));
 
 		dpos *= gravityConstant / (dis * sqrt(dis));
 
@@ -193,7 +200,13 @@ public:
 										findy = findx->second.find(anchory + dy & layeredTorusMod);
 
 										if (findy != findx->second.end())
+										{
 											ballPullBall(&fieldy->second, &findy->second, unitDifx, unitDify, unitDistance, fieldx->first, fieldy->first, findx->first, findy->first);
+
+											/*vd2d bPos = vd2d(anchorx + dx + 0.5, anchory + dy + 0.5) * unitDistance;
+
+											FillCircle((bPos - pos) * zoom + halfScreen, zoom * unitDistance * 0.25);*/
+										}
 									}
 								}
 							}
@@ -343,7 +356,7 @@ public:
 
 	void drawBalls()
 	{
-		Clear(Pixel(0, 0, 0));
+		//Clear(Pixel(0, 0, 0));
 
 		for (int b = 0; b < balls.size(); b++)
 			renderSpace[uint32_t(balls[b]->pos.x)][uint32_t(balls[b]->pos.y)].push_back(balls[b]);
@@ -370,7 +383,7 @@ public:
 						{
 							vd2d bPos = vd2d(partitionx - (int)findx->first, partitiony - (int)findy->first) + findy->second[b]->pos;
 
-							FillCircle((bPos - pos) * zoom + halfScreen, zoom * findy->second[b]->radius, findy->second[b]->color);
+							FillCircle((bPos - pos) * zoom + halfScreen, zoom * findy->second[b]->radius);
 						}
 					}
 				}
@@ -378,6 +391,14 @@ public:
 		}
 
 		renderSpace.clear();
+	}
+
+	void justDrawBalls()
+	{
+		for (int b = 0; b < balls.size(); b++)
+		{
+			FillCircle((balls[b]->pos - pos) * zoom + halfScreen, zoom * balls[b]->radius, balls[b]->color);
+		}
 	}
 
 	bool OnUserCreate() override
@@ -388,6 +409,7 @@ public:
 		halfScreen = { halfScreenx, halfScreeny };
 		m_z = (uint32_t)duration_cast<seconds>(high_resolution_clock::now().time_since_epoch()).count();
 		m_w = (uint32_t)duration_cast<microseconds>(high_resolution_clock::now().time_since_epoch()).count();
+		for (int i = 0; i < 100; i++) { intRand(); }
 
 		torusRange = 1 << torusPowerRange;
 		torusNearestMultiple = 0xffffffff << torusPowerRange;
@@ -407,15 +429,18 @@ public:
 
 	bool OnUserUpdate(double fElapsedTime) override
 	{
+		Clear(Pixel(0, 0, 0));
+
 		userControl(fElapsedTime);
 
 		if (GetKey(Key::SPACE).bHeld)
-			fElapsedTime = 0;
+			fElapsedTime *= 1000;
 
-		gravity(fElapsedTime * 0.2);
+		gravity(fElapsedTime * 0.001);
 		collision();
-		moveBalls(fElapsedTime * 0.2);
+		moveBalls(fElapsedTime * 0.001);
 		drawBalls();
+		justDrawBalls();
 
 		return true;
 	}
