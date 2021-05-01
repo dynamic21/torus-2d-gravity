@@ -593,13 +593,13 @@ namespace olc
 		v2d_generic  perp() const { return v2d_generic(-y, x); }
 		v2d_generic  floor() const { return v2d_generic(std::floor(x), std::floor(y)); }
 		v2d_generic  ceil() const { return v2d_generic(std::ceil(x), std::ceil(y)); }
-		v2d_generic  touint() const { return v2d_generic(uint32_t(x), std::uint32_t(y)); }
 		v2d_generic  max(const v2d_generic& v) const { return v2d_generic(std::max(x, v.x), std::max(y, v.y)); }
 		v2d_generic  min(const v2d_generic& v) const { return v2d_generic(std::min(x, v.x), std::min(y, v.y)); }
-		//v2d_generic  nearestMultiple(const uint32_t& rhs) const { return v2d_generic(uint32_t(x) & rhs, uint32_t(y) & rhs); }
 		T dot(const v2d_generic& rhs) const { return this->x * rhs.x + this->y * rhs.y; }
 		T cross(const v2d_generic& rhs) const { return this->x * rhs.y - this->y * rhs.x; }
+		v2d_generic  operator &  (const uint32_t& rhs)    const { return v2d_generic((uint32_t)this->x & rhs, (uint32_t)this->y & rhs); }
 		v2d_generic  operator +  (const v2d_generic& rhs) const { return v2d_generic(this->x + rhs.x, this->y + rhs.y); }
+		v2d_generic  operator +  (const T& rhs)           const { return v2d_generic(this->x + rhs, this->y + rhs); }
 		v2d_generic  operator -  (const v2d_generic& rhs) const { return v2d_generic(this->x - rhs.x, this->y - rhs.y); }
 		v2d_generic  operator *  (const T& rhs)           const { return v2d_generic(this->x * rhs, this->y * rhs); }
 		v2d_generic  operator *  (const v2d_generic& rhs) const { return v2d_generic(this->x * rhs.x, this->y * rhs.y); }
