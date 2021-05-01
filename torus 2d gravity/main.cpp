@@ -236,10 +236,19 @@ public:
 			}
 		}
 
-		/*for (auto fieldx = layeredGravityFields[0].begin(); fieldx != layeredGravityFields[0].end(); fieldx++)
+		for (auto fieldx = layeredGravityFields[0].begin(); fieldx != layeredGravityFields[0].end(); fieldx++)
 		{
 			for (auto fieldy = fieldx->second.begin(); fieldy != fieldx->second.end(); fieldy++)
 			{
+				for (int dx = 0; dx < 2; dx++)
+				{
+					for (int dy = 0; dy < 2; dy++)
+					{
+						vd2d bPos = vd2d(double((fieldx->first + dx & torusMod) + 0.5), double((fieldy->first + dy & torusMod) + 0.5));
+						FillCircle((bPos - pos) * zoom + halfScreen, zoom / 2, Pixel(0xff, 0, 0xff));
+					}
+				}/**/
+
 				for (int dx = 0; dx < 2; dx++)
 				{
 					findx = layeredGravityFields[0].find(fieldx->first + dx & torusMod);
@@ -248,18 +257,20 @@ public:
 					{
 						for (int dy = 0; dy < 2; dy++)
 						{
-							findy = findx->second.find(fieldy->first + dy & torusMod);
-
-							if (findy != findx->second.end())
+							if (dx > 0 || dy > 0)
 							{
-								cout << findx->first << ", " << findy->first << ", " << findy->second.vel << endl;
-								findy->second.vel += fieldy->second.vel;
+								findy = findx->second.find(fieldy->first + dy & torusMod);
+
+								if (findy != findx->second.end())
+								{
+									ballPullBall(&fieldy->second, &findy->second, dx, dy, 1, fieldx->first, fieldy->first, findx->first, findy->first);
+								}
 							}
 						}
 					}
 				}
 			}
-		}*/
+		}
 
 		for (int layer = numGravityFields - 1; layer > 0; layer--)
 		{
