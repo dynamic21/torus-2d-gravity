@@ -123,15 +123,13 @@ public:
 
 	void ballPullBall(clusterBall* ball1, clusterBall* ball2, int dx, int dy, uint32_t unitDistance, uint32_t partion1x, uint32_t partion1y, uint32_t partion2x, uint32_t partion2y)
 	{
-		vd2d dpos = vd2d(int(partion1x - partion2x) + dx, int(partion1y - partion2y) + dy) * unitDistance - ball1->pos + ball2->pos;
+		vd2d dpos = vd2d(partion1x - partion2x + dx, partion1y - partion2y + dy) * unitDistance - ball1->pos + ball2->pos;
 		double dis = dpos.mag2();
 
 		vd2d bPos1 = ball1->pos;
-		vd2d bPos2 = ball2->pos;
-		vd2d bPos3 = ball1->pos + dpos;
+		vd2d bPos2 = ball1->pos + dpos;
 
-		DrawLine((bPos1 - pos) * zoom + halfScreen, (bPos3 - pos) * zoom + halfScreen, Pixel(0xff, 0, 0));
-		//DrawLine((bPos1 - pos) * zoom + halfScreen, (bPos2 - pos) * zoom + halfScreen, Pixel(0, 0xff, 0));
+		DrawLine((bPos1 - pos) * zoom + halfScreen, (bPos2 - pos) * zoom + halfScreen, Pixel(0xff, 0, 0));
 
 		dpos *= gravityConstant / (dis * sqrt(dis));
 
@@ -216,30 +214,30 @@ public:
 			}
 		}
 
-		for (auto fieldx = layeredGravityFields[0].begin(); fieldx != layeredGravityFields[0].end(); fieldx++) // near neighbor
-		{
-			for (auto fieldy = fieldx->second.begin(); fieldy != fieldx->second.end(); fieldy++)
-			{
-				for (int dx = 0; dx < 2; dx++)
-				{
-					findx = layeredGravityFields[0].find(fieldx->first + dx & torusMod);
+		//for (auto fieldx = layeredGravityFields[0].begin(); fieldx != layeredGravityFields[0].end(); fieldx++) // near neighbor
+		//{
+		//	for (auto fieldy = fieldx->second.begin(); fieldy != fieldx->second.end(); fieldy++)
+		//	{
+		//		for (int dx = 0; dx < 2; dx++)
+		//		{
+		//			findx = layeredGravityFields[0].find(fieldx->first + dx & torusMod);
 
-					if (findx != layeredGravityFields[0].end())
-					{
-						for (int dy = 0; dy < 2; dy++)
-						{
-							if (dx > 0 || dy > 0)
-							{
-								findy = findx->second.find(fieldy->first + dy & torusMod);
+		//			if (findx != layeredGravityFields[0].end())
+		//			{
+		//				for (int dy = 0; dy < 2; dy++)
+		//				{
+		//					if (dx > 0 || dy > 0)
+		//					{
+		//						findy = findx->second.find(fieldy->first + dy & torusMod);
 
-								if (findy != findx->second.end())
-									ballPullBall(&fieldy->second, &findy->second, dx, dy, 1, fieldx->first, fieldy->first, findx->first, findy->first);
-							}
-						}
-					}
-				}
-			}
-		}
+		//						if (findy != findx->second.end())
+		//							ballPullBall(&fieldy->second, &findy->second, dx, dy, 1, fieldx->first, fieldy->first, findx->first, findy->first);
+		//					}
+		//				}
+		//			}
+		//		}
+		//	}
+		//}
 
 		for (int layer = numGravityFields - 1; layer > 0; layer--) // collecting
 		{
@@ -273,11 +271,24 @@ public:
 			layeredGravityFields[i].clear();
 	}
 
-	void ballToBall(ball* ball1, ball* ball2, int dx, int dy, uint32_t partion1x, uint32_t partion1y, uint32_t partion2x, uint32_t partion2y)
+	void ballToBall(ball* ball1, ball* ball2, int dx, int dy, uint32_t partion1x, uint32_t partion1y, uint32_t partion2x, uint32_t partion2y, double fElapsedTime)
 	{
-		vd2d dpos = vd2d(partion1x - partion2x + dx, partion1y - partion2y + dy) + ball2->pos - ball1->pos;
+		vd2d dpos = vd2d(partion1x - partion2x + dx, partion1y - partion2y + dy) - ball1->pos + ball2->pos;
 		double dis = dpos.mag2();
 		double totalSize = ball2->radius + ball1->radius;
+
+		vd2d bPos1 = ball1->pos;
+		vd2d bPos2 = ball1->pos + dpos;
+
+		DrawLine((bPos1 - pos) * zoom + halfScreen, (bPos2 - pos) * zoom + halfScreen, Pixel(0, 0xff, 0));
+
+		double grav = gravityConstant / (dis * sqrt(dis)) * fElapsedTime;
+
+		ball1->vel += dpos * ball2->mass * grav;
+		ball2->vel -= dpos * ball1->mass * grav;
+
+
+
 
 		if (dis < totalSize * totalSize)
 		{
@@ -293,7 +304,7 @@ public:
 		}
 	}
 
-	void collision()
+	void collision(double fElapsedTime)
 	{
 		for (int i = 0; i < balls.size(); i++)
 			collisionSpace[uint32_t(balls[i]->pos.x)][uint32_t(balls[i]->pos.y)].push_back(balls[i]);
@@ -308,13 +319,13 @@ public:
 				for (int b1 = 0; b1 < partitiony->second.size(); b1++)
 				{
 					for (int b2 = b1 + 1; b2 < partitiony->second.size(); b2++)
-						ballToBall(partitiony->second[b1], partitiony->second[b2], 0, 0, partitionx->first, partitiony->first, partitionx->first, partitiony->first);
+						ballToBall(partitiony->second[b1], partitiony->second[b2], 0, 0, partitionx->first, partitiony->first, partitionx->first, partitiony->first, fElapsedTime);
 
 					findy = partitionx->second.find(partitiony->first + 1 & torusMod);
 
 					if (findy != partitionx->second.end())
 						for (int b2 = 0; b2 < findy->second.size(); b2++)
-							ballToBall(partitiony->second[b1], findy->second[b2], 0, 1, partitionx->first, partitiony->first, partitionx->first, findy->first);
+							ballToBall(partitiony->second[b1], findy->second[b2], 0, 1, partitionx->first, partitiony->first, partitionx->first, findy->first, fElapsedTime);
 
 					findx = collisionSpace.find(partitionx->first + 1 & torusMod);
 
@@ -324,19 +335,19 @@ public:
 
 						if (findy != findx->second.end())
 							for (int b2 = 0; b2 < findy->second.size(); b2++)
-								ballToBall(partitiony->second[b1], findy->second[b2], 1, 1, partitionx->first, partitiony->first, findx->first, findy->first);
+								ballToBall(partitiony->second[b1], findy->second[b2], 1, 1, partitionx->first, partitiony->first, findx->first, findy->first, fElapsedTime);
 
 						findy = findx->second.find(partitiony->first);
 
 						if (findy != findx->second.end())
 							for (int b2 = 0; b2 < findy->second.size(); b2++)
-								ballToBall(partitiony->second[b1], findy->second[b2], 1, 0, partitionx->first, partitiony->first, findx->first, findy->first);
+								ballToBall(partitiony->second[b1], findy->second[b2], 1, 0, partitionx->first, partitiony->first, findx->first, findy->first, fElapsedTime);
 
 						findy = findx->second.find(partitiony->first - 1 & torusMod);
 
 						if (findy != findx->second.end())
 							for (int b2 = 0; b2 < findy->second.size(); b2++)
-								ballToBall(partitiony->second[b1], findy->second[b2], 1, -1, partitionx->first, partitiony->first, findx->first, findy->first);
+								ballToBall(partitiony->second[b1], findy->second[b2], 1, -1, partitionx->first, partitiony->first, findx->first, findy->first, fElapsedTime);
 					}
 				}
 			}
@@ -357,6 +368,7 @@ public:
 	void drawBalls()
 	{
 		//Clear(Pixel(0, 0, 0));
+		pos = balls[0]->pos;
 
 		for (int b = 0; b < balls.size(); b++)
 			renderSpace[uint32_t(balls[b]->pos.x)][uint32_t(balls[b]->pos.y)].push_back(balls[b]);
@@ -436,8 +448,8 @@ public:
 		if (GetKey(Key::SPACE).bHeld)
 			fElapsedTime *= 1000;
 
-		gravity(fElapsedTime * 0.001);
-		collision();
+		gravity(fElapsedTime * 0.001); // far away objects
+		collision(fElapsedTime * 0.001); // collision and near objects
 		moveBalls(fElapsedTime * 0.001);
 		drawBalls();
 		justDrawBalls();
